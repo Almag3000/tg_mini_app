@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Переплёт Реальностей</title>
+  <style>
+    body { margin: 0; background: #222; color: white; font-family: sans-serif; text-align: center; }
+    canvas { background: #000; display: block; margin: 20px auto; border: 2px solid #555; transition: opacity 0.3s ease; }
+    h1 { margin-top: 10px; animation: fadeInDown 1s ease both; }
+    p { animation: fadeInDown 1.2s ease both; }
+    .fade-out { opacity: 0; }
+    .fade-in { opacity: 1; }
+    #menu, #pauseOverlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background-color: rgba(0, 0, 0, 0.85);
+      z-index: 10;
+      animation: fadeIn 1s ease both;
+    }
+    #hud {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 5;
+      font-size: 18px;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 10px;
+      font-size: 18px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    button:hover {
+      transform: scale(1.1);
+    }
+    #pauseBtn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 5;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    @keyframes fadeInDown {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <h1>Переплёт Реальностей</h1>
+  <p>WASD для движения, Q — переключить мир</p>
+  <div id="hud">
+    <div>⏱ Время: <span id="timer">0</span>с</div>
+    <div>⭐ Очки: <span id="score">0</span></div>
+  </div>
+  <button id="pauseBtn" style="display:none">⏸</button>
+  <div id="menu">
+    <button id="startBtn">Начать игру</button>
+  </div>
+  <div id="pauseOverlay" style="display:none">
+    <button id="resumeBtn">Продолжить</button>
+    <button id="exitBtn">Выйти в меню</button>
+  </div>
+  <canvas id="game" width="600" height="600"></canvas>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const menu = document.getElementById('menu');
+    const pauseOverlay = document.getElementById('pauseOverlay');
+    const startBtn = document.getElementById('startBtn');
+    const resumeBtn = document.getElementById('resumeBtn');
+    const exitBtn = document.getElementById('exitBtn');
+    const timerDisplay = document.getElementById('timer');
+    const scoreDisplay = document.getElementById('score');
+
+    const tileSize = 37.5;
+    const mapSize = 16;
+    const player = { x: 1, y: 1 };
+    let world = 0;
+    let isPaused = true;
+    let timer = 0;
+    let score = 0;
+    let interval;
+    let enemies = [];
+
+    function generateLevel() {
+      function randomMap() {
+        const map = [];
+        for (let y = 0; y < mapSize; y++) {
+          let row = '';
+          for (let x = 0; x < mapSize; x++) {
+            if (y === 0 || y === mapSize - 1 || x === 0 || x === mapSize - 1) {
+              row += '#';
+            } else {
+              row += Math.random() < 0.4 ? '#' : ' ';
+            }
+          }
+          map.push(row);
+        }
+        map[1] = map[1].substring(0, 1) + ' ' + map[1].substring(2);
+        map[mapSize - 2] = map[mapSize - 2].substring(0, mapSize - 2) + 'E';
+        return map;
+      }
+      return [randomMap(), randomMap()];
+    }
+
+    function resetEnemies() {
+      enemies = [];
+      for (let i = 0; i < 3; i++) {
+        enemies.push({
+          x: Math.floor(Math.random() * (mapSize - 2)) + 1,
+          y: Math.floor(Math.random() * (mapSize - 2)) + 1,
+          dx: Math.random() < 0.5 ? 1 : -1,
+          dy: Math.random() < 0.5 ? 1 : -1
+        });
+      }
+    }
+
+    function draw() {
+      if (isPaused) return;
+      const map = getMap();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.font = "20px monospace";
+      for (let y = 0; y < mapSize; y++) {
+        for (let x = 0; x < mapSize; x++) {
+          const ch = map[y][x];
+          if (ch === '#') {
+            ctx.fillStyle = world === 0 ? '#aaa' : '#555';
+            ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
+          } else if (ch === 'E') {
+            ctx.fillStyle = 'lime';
+            ctx.fillText('E', x * tileSize + 12, y * tileSize + 28);
+          }
+        }
+      }
+      ctx.fillStyle = 'cyan';
+      ctx.fillRect(player.x * tileSize + 8, player.y * tileSize + 8, 24, 24);
+      ctx.fillStyle = 'red';
+      for (const enemy of enemies) {
+        ctx.beginPath();
+        ctx.arc(enemy.x * tileSize + 18, enemy.y * tileSize + 18, 10, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+    }
+
+    function moveEnemies() {
+      for (const e of enemies) {
+        if (!canMove(e.x + e.dx, e.y)) e.dx *= -1;
+        if (!canMove(e.x, e.y + e.dy)) e.dy *= -1;
+        e.x += e.dx;
+        e.y += e.dy;
+        if (e.x === player.x && e.y === player.y) {
+          alert('Вы столкнулись с врагом!');
+          isPaused = true;
+          clearInterval(interval);
+          menu.style.display = 'flex';
+          pauseBtn.style.display = 'none';
+        }
+      }
+    }
+
+    function getMap() {
+      return currentLevel[world];
+    }
+
+    function animateWorldSwitch() {
+      canvas.classList.add('fade-out');
+      setTimeout(() => {
+        world = 1 - world;
+        draw();
+        canvas.classList.remove('fade-out');
+        canvas.classList.add('fade-in');
+        setTimeout(() => canvas.classList.remove('fade-in'), 300);
+      }, 300);
+    }
+
+    function nextLevel() {
+      currentLevel = generateLevel();
+      resetEnemies();
+      player.x = 1;
+      player.y = 1;
+      world = 0;
+      score += 100;
+      scoreDisplay.textContent = score;
+      draw();
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (isPaused) return;
+      let dx = 0, dy = 0;
+      if (e.key === 'w') dy = -1;
+      if (e.key === 's') dy = 1;
+      if (e.key === 'a') dx = -1;
+      if (e.key === 'd') dx = 1;
+      if (e.key === 'q') {
+        animateWorldSwitch();
+        return;
+      }
+      const newX = player.x + dx;
+      const newY = player.y + dy;
+      const map = getMap();
+      const tile = map[newY]?.[newX];
+      if (canMove(newX, newY)) {
+        player.x = newX;
+        player.y = newY;
+        if (tile === 'E') {
+          alert('Уровень пройден!');
+          nextLevel();
+          return;
+        }
+      }
+      draw();
+    });
+
+    function canMove(x, y) {
+      const map = getMap();
+      if (x < 0 || x >= mapSize || y < 0 || y >= mapSize) return false;
+      const tile = map[y][x];
+      return tile !== '#';
+    }
+
+    function gameLoop() {
+      if (!isPaused) {
+        moveEnemies();
+        draw();
+        timer++;
+        timerDisplay.textContent = timer;
+      }
+    }
+
+    startBtn.onclick = () => {
+      menu.style.display = 'none';
+      pauseBtn.style.display = 'block';
+      isPaused = false;
+      score = 0;
+      timer = 0;
+      timerDisplay.textContent = timer;
+      scoreDisplay.textContent = score;
+      currentLevel = generateLevel();
+      resetEnemies();
+      player.x = 1;
+      player.y = 1;
+      world = 0;
+      interval = setInterval(gameLoop, 1000);
+      draw();
+    };
+
+    pauseBtn.onclick = () => {
+      isPaused = true;
+      pauseOverlay.style.display = 'flex';
+    };
+
+    resumeBtn.onclick = () => {
+      isPaused = false;
+      pauseOverlay.style.display = 'none';
+      draw();
+    };
+
+    exitBtn.onclick = () => {
+      isPaused = true;
+      pauseOverlay.style.display = 'none';
+      menu.style.display = 'flex';
+      pauseBtn.style.display = 'none';
+      clearInterval(interval);
+    };
+  </script>
+</body>
+</html>
