@@ -3,14 +3,15 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.enums import ParseMode
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 from aiogram.filters import Command
+import aiohttp
 
 API_TOKEN = '1718355118:AAFkuoOFyJVkVy21CarleBjeaM_3O55G680'
 GAME_SHORT_NAME = "Flop"
-GAME_URL = "https://flappybird-telegram.vercel.app/"
+# URL of our FastAPI server with hosted web app
+GAME_URL = "http://localhost:8000/game.html"
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
-
 
 @dp.message(Command(commands=['start', 'play']))
 async def send_game(message: types.Message):
@@ -19,6 +20,13 @@ async def send_game(message: types.Message):
     ])
     await message.answer_game(game_short_name=GAME_SHORT_NAME, reply_markup=keyboard)
 
+@dp.message(Command('matchmake'))
+async def make_match(message: types.Message):
+    """Request matchmaking from the FastAPI server."""
+    async with aiohttp.ClientSession() as session:
+        resp = await session.post('http://localhost:8000/matchmake', json={'player_id': str(message.from_user.id)})
+        data = await resp.json()
+    await message.answer(f"Server response: {data}")
 
 @dp.callback_query(lambda c: c.game_short_name == GAME_SHORT_NAME)
 async def process_callback(callback_query: CallbackQuery):
@@ -27,9 +35,8 @@ async def process_callback(callback_query: CallbackQuery):
         url=GAME_URL
     )
 
-
 async def main():
-    await bot.delete_webhook(drop_pending_updates=True)  # ⬅️ отключаем webhook
+    await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
 
 if __name__ == "__main__":

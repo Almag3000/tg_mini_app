@@ -83,6 +83,11 @@
     const timerDisplay = document.getElementById('timer');
     const scoreDisplay = document.getElementById('score');
 
+    const params = new URLSearchParams(window.location.search);
+    const playerId = params.get('player_id') || Math.random().toString(36).slice(2);
+    const ws = new WebSocket(`ws://${window.location.host}/ws/${playerId}`);
+    ws.onmessage = (e) => console.log('event', e.data);
+
     const tileSize = 37.5;
     const mapSize = 16;
     const player = { x: 1, y: 1 };
