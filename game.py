@@ -1,11 +1,12 @@
 import asyncio
+import os
 from aiogram import Bot, Dispatcher, types
 from aiogram.enums import ParseMode
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 from aiogram.filters import Command
 import aiohttp
 
-API_TOKEN = '1718355118:AAFkuoOFyJVkVy21CarleBjeaM_3O55G680'
+API_TOKEN = os.getenv("TG_API_TOKEN")
 GAME_SHORT_NAME = "Flop"
 # URL of our FastAPI server with hosted web app
 GAME_URL = "http://localhost:8000/game.html"
