@@ -9,6 +9,8 @@ API_TOKEN = '1718355118:AAFkuoOFyJVkVy21CarleBjeaM_3O55G680'
 GAME_SHORT_NAME = "Flop"
 # URL of our FastAPI server with hosted web app
 GAME_URL = "http://localhost:8000/game.html"
+# URL of new frontend for Telegram Web App
+WEB_APP_URL = "http://localhost:8000/frontend/index.html"
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
@@ -34,6 +36,16 @@ async def process_callback(callback_query: CallbackQuery):
         callback_query.id,
         url=GAME_URL
     )
+
+@dp.message(Command('app'))
+async def send_web_app(message: types.Message):
+    """Send keyboard that opens the frontend as a Telegram Web App."""
+    kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="Open Lobby", web_app=types.WebAppInfo(url=WEB_APP_URL))]
+        ]
+    )
+    await message.answer("Открыть приложение", reply_markup=kb)
 
 async def main():
     await bot.delete_webhook(drop_pending_updates=True)

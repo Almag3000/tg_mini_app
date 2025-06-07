@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Body
 from fastapi.staticfiles import StaticFiles
 from dataclasses import dataclass
 from typing import Dict, Deque
@@ -19,7 +19,7 @@ sessions: Dict[str, Session] = {}
 websockets: Dict[str, WebSocket] = {}
 
 @app.post("/matchmake")
-async def matchmake(player_id: str):
+async def matchmake(player_id: str = Body(..., embed=True)):
     """Put player in queue and pair with opponent if available."""
     if waiting_players:
         opponent = waiting_players.popleft()
