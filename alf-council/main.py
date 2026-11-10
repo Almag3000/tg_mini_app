@@ -133,3 +133,18 @@ async def historical_backtest(symbol: str, interval: str = "15", limit: int = 20
         raise HTTPException(400, str(exc)) from exc
     except httpx.HTTPError as exc:
         raise HTTPException(503, "Historical data provider unavailable") from exc
+
+
+from evaluation import evaluate
+
+@app.get("/api/evaluate/{symbol}")
+async def historical_evaluation(symbol: str, interval: str = "15", limit: int = 200,
+                                train_fraction: float = 0.7):
+    try:
+        bars = await historical_candles(symbol.upper(), interval, limit)
+        result = evaluate(bars, train_fraction)
+        return {"symbol": symbol.upper(), "interval": interval, "result": result}
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(503, "Historical data provider unavailable") from exc
