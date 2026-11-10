@@ -1,0 +1,26 @@
+name: ALF Council CI
+on:
+  push:
+    branches: [feature/alf-council]
+    paths:
+      - 'alf-council/**'
+      - '.github/workflows/alf-council-ci.yml'
+  pull_request:
+    paths:
+      - 'alf-council/**'
+      - '.github/workflows/alf-council-ci.yml'
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: alf-council
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements.txt
+      - run: python -m compileall -q .
+      - run: python -m unittest discover -s tests -v
+      - run: docker build -t alf-council:test .
