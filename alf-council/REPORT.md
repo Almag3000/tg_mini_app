@@ -36,3 +36,10 @@ Date: 2026-11-10
 5. Security audit, jurisdiction checks, access control and key permissions.
 
 **Status: experimental prototype, NOT production ready.**
+
+## Follow-up 2026-11-10
+- Added loss-gate checks in paper account, corrected entry-fee inclusion in realized round-trip PnL, added two regression tests.
+- The pre-existing local ZIP prototype at /mnt/data/alf-council was tested separately: pytest reported 2 passed. **These tests do not validate the updated GitHub branch**, which is a different code tree.
+- GitHub workflow runs queried through the connector for the latest earlier commit returned an empty list. No CI success can be claimed.
+- No Docker executable available in the local environment; no container build claim.
+- The system is still not complete or production-ready. No Bybit Demo or live execution implemented.
