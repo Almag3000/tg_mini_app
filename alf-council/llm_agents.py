@@ -38,7 +38,7 @@ async def ask(role: str, snapshot: dict, previous: list[dict] | None = None) -> 
         body = response.json()["choices"][0]["message"]["content"]
     body = body.strip()
     if body.startswith("```"):
-        body = body.split("\\n", 1)[1].rsplit("```", 1)[0].strip()
+        body = body.split("\n", 1)[1].rsplit("```", 1)[0].strip()
     data = json.loads(body)
     if data.get("action") not in ("HOLD", "LONG", "SHORT"):
         raise ValueError("Invalid model action")
