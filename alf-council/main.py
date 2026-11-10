@@ -58,7 +58,10 @@ def council(t: dict) -> dict:
 
 @app.get("/api/council/{symbol}")
 async def analyze(symbol: str):
-    return council(await ticker(symbol.upper()))
+    report = council(await ticker(symbol.upper()))
+    from storage import save_decision
+    save_decision(report)
+    return report
 
 @app.get("/", response_class=HTMLResponse)
 async def home():
@@ -98,3 +101,11 @@ async def run_debate(symbol: str):
         raise HTTPException(503, str(exc)) from exc
     except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
         raise HTTPException(502, f"LLM provider error: {exc}") from exc
+
+@app.get("/api/decisions")
+async def decisions(limit: int = 20):
+    from storage import recent_decisions
+    try:
+        return {"items": recent_decisions(limit)}
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
