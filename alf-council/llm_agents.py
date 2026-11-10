@@ -36,10 +36,14 @@ async def ask(role: str, snapshot: dict, previous: list[dict] | None = None) -> 
                                {"role": "user", "content": json.dumps(prompt)}]})
         response.raise_for_status()
         body = response.json()["choices"][0]["message"]["content"]
-    body = body.strip()\n    if body.startswith("```"):\n        body = body.split("\\n", 1)[1].rsplit("```", 1)[0].strip()\n    data = json.loads(body)
+    body = body.strip()
+    if body.startswith("```"):
+        body = body.split("\\n", 1)[1].rsplit("```", 1)[0].strip()
+    data = json.loads(body)
     if data.get("action") not in ("HOLD", "LONG", "SHORT"):
         raise ValueError("Invalid model action")
-    data.pop("role", None)\n    return Opinion(role=role, **data)
+    data.pop("role", None)
+    return Opinion(role=role, **data)
 
 async def debate(snapshot: dict) -> dict:
     # Two sequential rounds; no live execution permitted.
