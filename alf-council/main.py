@@ -109,3 +109,27 @@ async def decisions(limit: int = 20):
         return {"items": recent_decisions(limit)}
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
+
+from market import candles as historical_candles
+
+@app.get("/api/history/{symbol}")
+async def history(symbol: str, interval: str = "15", limit: int = 200):
+    try:
+        return {"symbol": symbol.upper(), "interval": interval,
+                "candles": await historical_candles(symbol.upper(), interval, limit)}
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(503, "Historical data provider unavailable") from exc
+
+@app.get("/api/backtest/{symbol}")
+async def historical_backtest(symbol: str, interval: str = "15", limit: int = 200):
+    try:
+        bars = await historical_candles(symbol.upper(), interval, limit)
+        result = backtest(bars)
+        return {"symbol": symbol.upper(), "interval": interval, "bars": len(bars),
+                "strategy": "naive momentum baseline (NOT LLM council)", "result": result}
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(503, "Historical data provider unavailable") from exc
