@@ -65,17 +65,44 @@ async def analyze(symbol: str):
 
 @app.get("/", response_class=HTMLResponse)
 async def home():
-    return """<!doctype html><html lang="ru"><meta charset="utf-8">
+    return """<!doctype html><html lang="ru"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ALF Council</title><style>body{font:16px system-ui;background:#101521;color:#f1f5f9;max-width:820px;margin:40px auto;padding:16px}
-button{padding:12px;border:0;border-radius:8px;cursor:pointer}pre{white-space:pre-wrap;background:#1e293b;padding:18px;border-radius:12px}
-small{color:#94a3b8}</style><h1>ALF Council</h1>
-<p>Мультиагентный прототип · Только наблюдение · Реальные сделки отключены</p>
-<button onclick="load('BTCUSDT')">BTCUSDT</button> <button onclick="load('ETHUSDT')">ETHUSDT</button>
-<pre id="out">Выберите инструмент</pre><small>Роли основаны на правилах; LLM пока не подключены.</small>
-<script>async function load(s){const o=document.getElementById('out');o.textContent='Загрузка...';
-try{let r=await fetch('/api/council/'+s);let j=await r.json();o.textContent=JSON.stringify(j,null,2)}
-catch(e){o.textContent=String(e)}}</script></html>"""
+<title>ALF Council</title><style>
+:root{color-scheme:dark}*{box-sizing:border-box}body{font:15px system-ui;background:#0b1020;color:#e5e7eb;max-width:1050px;margin:auto;padding:20px}
+h1{font-size:32px;margin-bottom:4px}h2{font-size:19px}p,small{color:#a7b0c0}
+nav{display:flex;gap:8px;flex-wrap:wrap;margin:22px 0}button,select{background:#263451;color:#fff;border:1px solid #445577;border-radius:9px;padding:11px;cursor:pointer}
+button:hover{background:#344c77}section{background:#151e32;border:1px solid #2b3954;border-radius:14px;padding:18px;margin:14px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+article{background:#1c2942;border-radius:10px;padding:13px;line-height:1.5}
+strong{color:#f8fafc}.status{color:#fbbf24}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;max-height:420px;overflow:auto}
+</style></head><body>
+<h1>ALF Council</h1><p>Исследовательская панель · Публичные данные Bybit · Реальные ордера запрещены</p>
+<nav><select id="symbol"><option>BTCUSDT</option><option>ETHUSDT</option></select>
+<button onclick="run('council')">Совет (правила)</button>
+<button onclick="run('debate')">Дискуссия ИИ</button>
+<button onclick="run('evaluate')">Историческая проверка</button>
+<button onclick="run('decisions')">Журнал</button></nav>
+<section><h2>Состояние</h2><div id="status" class="status">Ожидание запроса. Реальные сделки отключены.</div></section>
+<section><h2>Результаты</h2><div id="summary" class="grid"></div><details><summary>Исходные данные JSON</summary><pre id="raw"></pre></details></section>
+<small>Дискуссия ИИ требует OpenRouter API key и модели. Историческая проверка — базовая стратегия, не тест совета ИИ. Панель без аутентификации: запускать только локально.</small>
+<script>
+function card(title,body){let a=document.createElement('article'),b=document.createElement('strong'),p=document.createElement('p');b.textContent=title;p.textContent=body;a.append(b,p);return a}
+async function run(kind){
+ const symbol=document.getElementById('symbol').value;
+ const status=document.getElementById('status'), summary=document.getElementById('summary'),raw=document.getElementById('raw');
+ status.textContent='Запрос выполняется...';summary.replaceChildren();raw.textContent='';
+ let path=kind==='council'?'/api/council/'+symbol:kind==='debate'?'/api/debate/'+symbol:kind==='evaluate'?'/api/evaluate/'+symbol:'/api/decisions';
+ try{let r=await fetch(path,{method:kind==='debate'?'POST':'GET'});let data=await r.json();if(!r.ok)throw Error(data.detail||'HTTP '+r.status);
+ raw.textContent=JSON.stringify(data,null,2);status.textContent='Данные получены. Исполнение ордеров отключено.';
+ if(kind==='council'){summary.append(card('Решение',data.proposal.action),card('Риск',data.risk.reason));
+ for(const round of data.rounds)for(const report of round.reports)summary.append(card(report.agent,report.message))}
+ else if(kind==='debate'){summary.append(card('Предложение',data.proposal),card('Разрешение на исполнение',String(data.execution_approved)));
+ for(const o of data.round_2)summary.append(card(o.role,o.action+' — '+o.argument))}
+ else if(kind==='evaluate'){let v=data.result.out_of_sample;summary.append(card('Контрольный период',v.bars+' свечей'),card('PnL (USDT)',String(v.net_pnl)),card('Сделок',String(v.trades)),card('Win rate',v.win_rate===null?'нет данных':(v.win_rate*100).toFixed(1)+'%'))}
+ else{summary.append(card('Записей',String(data.items.length)));for(const d of data.items)summary.append(card(d.symbol+' '+d.action,d.created_at))}
+ }catch(e){status.textContent='Ошибка: '+e.message}
+}
+</script></body></html>"""
 
 
 from engine import backtest
