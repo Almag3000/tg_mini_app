@@ -73,3 +73,28 @@ small{color:#94a3b8}</style><h1>ALF Council</h1>
 <script>async function load(s){const o=document.getElementById('out');o.textContent='Загрузка...';
 try{let r=await fetch('/api/council/'+s);let j=await r.json();o.textContent=JSON.stringify(j,null,2)}
 catch(e){o.textContent=String(e)}}</script></html>"""
+
+
+from engine import backtest
+from llm_agents import debate
+
+class BacktestRequest(BaseModel):
+    candles: list[dict]
+    starting_cash: float = Field(default=1000, gt=0, le=1000000)
+
+@app.post("/api/backtest")
+async def run_backtest(request: BacktestRequest):
+    try:
+        return backtest(request.candles, request.starting_cash)
+    except (ValueError, KeyError, TypeError) as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+@app.post("/api/debate/{symbol}")
+async def run_debate(symbol: str):
+    market = await ticker(symbol.upper())
+    try:
+        return await debate(market)
+    except RuntimeError as exc:
+        raise HTTPException(503, str(exc)) from exc
+    except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
+        raise HTTPException(502, f"LLM provider error: {exc}") from exc
