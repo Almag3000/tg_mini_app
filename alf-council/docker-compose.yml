@@ -1,0 +1,14 @@
+services:
+  alf-council:
+    build: .
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      ALF_DB_PATH: /data/alf_council.sqlite3
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      ALF_LLM_MODEL: ${ALF_LLM_MODEL:-}
+    volumes:
+      - alf-data:/data
+    restart: unless-stopped
+volumes:
+  alf-data:
