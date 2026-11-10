@@ -22,6 +22,25 @@ class PaperAccount:
     halted: bool = False
     # MVP permits one round-trip position at a time.
     position: dict | None = None
+    day_start_cash: float | None = None
+    week_start_cash: float | None = None
+    current_day: str | None = None
+    current_week: str | None = None
+
+    def _check_limits(self, timestamp: str | None = None) -> None:
+        now = datetime.fromisoformat(timestamp.replace("Z", "+00:00")) if timestamp else datetime.now(timezone.utc)
+        day = now.date().isoformat()
+        week = f"{now.isocalendar().year}-W{now.isocalendar().week:02d}"
+        if self.current_day != day:
+            self.current_day, self.day_start_cash = day, self.cash
+        if self.current_week != week:
+            self.current_week, self.week_start_cash = week, self.cash
+        if self.cash <= self.day_start_cash * (1 - self.limits.daily_loss_fraction):
+            self.halted = True
+            raise ValueError("Daily loss limit reached")
+        if self.cash <= self.week_start_cash * (1 - self.limits.weekly_loss_fraction):
+            self.halted = True
+            raise ValueError("Weekly loss limit reached")
 
     def equity(self, mark: float | None = None) -> float:
         if not self.position:
@@ -31,6 +50,7 @@ class PaperAccount:
         return self.cash + p["qty"] * (m - p["entry"]) * p["side"]
 
     def open(self, side: str, price: float, stop: float, symbol: str, timestamp: str | None = None) -> dict:
+        self._check_limits(timestamp)
         if self.halted or self.position:
             raise ValueError("Halted or position already open")
         if side not in ("LONG", "SHORT") or symbol not in ("BTCUSDT", "ETHUSDT"):
@@ -49,7 +69,7 @@ class PaperAccount:
         fee = qty * entry * self.limits.fee_fraction
         self.cash -= fee
         self.position = dict(symbol=symbol, side=1 if side == "LONG" else -1, qty=qty,
-                             entry=entry, stop=stop, opened=timestamp or datetime.now(timezone.utc).isoformat())
+                             entry=entry, stop=stop, entry_fee=fee, opened=timestamp or datetime.now(timezone.utc).isoformat())
         return dict(self.position)
 
     def close(self, price: float, reason: str = "manual") -> dict:
@@ -60,8 +80,8 @@ class PaperAccount:
         fee = p["qty"] * exit_price * self.limits.fee_fraction
         pnl = p["qty"] * (exit_price - p["entry"]) * p["side"] - fee
         self.cash += pnl
-        self.realized_pnl += pnl
-        trade = dict(**p, exit=exit_price, net_pnl=pnl, reason=reason)
+        self.realized_pnl += pnl - p["entry_fee"]
+        trade = dict(**p, exit=exit_price, net_pnl=pnl - p["entry_fee"], reason=reason)
         self.trades.append(trade)
         self.position = None
         return trade
