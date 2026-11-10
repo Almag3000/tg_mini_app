@@ -26,7 +26,7 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(r.status_code, 400)
 
     def test_llm_disabled(self):
-        with patch("llm_agents.debate", new_callable=AsyncMock, side_effect=RuntimeError("LLM disabled")):
+        with patch("main.debate", new_callable=AsyncMock, side_effect=RuntimeError("LLM disabled")):
             with patch("main.ticker", new_callable=AsyncMock, return_value={"symbol":"BTCUSDT","last":100.0,"change24h":0.0,"turnover24h":0.0}):
                 r = self.client.post("/api/debate/BTCUSDT")
         self.assertEqual(r.status_code, 503)
